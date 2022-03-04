@@ -1,46 +1,70 @@
-import { useState } from "react";
-import { Button, Col, Container, Form, ListGroup, Row, Tab, Tabs } from "react-bootstrap";
+import { useEffect, useState } from "react";
+import { Alert, Button, Col, Container, Form, ListGroup, Row, Tab, Tabs } from "react-bootstrap";
+import { getAllTodos, addNewTodo, updateTodo, deleteTodo } from "./api/todos";
 import BadgeTab from "./components/BadgeTab";
 import Item from "./components/Item";
 
 function App() {
-  const [ todos, setTodos ] = useState([
-    { id: 1, description: 'Learn JavaScript', done: false },
-    { id: 2, description: 'Learn Node.js', done: false }
-  ]);
-
+  const [ todos, setTodos ] = useState([]);
   const [ toAdd, setToAdd ] = useState('');
+  const [ error, setError ] = useState('');
 
-  const addTodo = () => {
+  useEffect(() => {
+    fetchData();
+  }, [])
+
+  const fetchData = async () => {
+    try {
+      const list = await getAllTodos();
+      setTodos(list);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  const addTodo = async () => {
     const newTodo = {
       id: Date.now(),
       description: toAdd,
       done: false
     };
 
-    setTodos([...todos, newTodo]);
-    setToAdd('');
+    try {
+      await addNewTodo(newTodo);
+      const allTodos = await getAllTodos();
+      setTodos(allTodos);
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
-  const done = (id, isDone) => {
-    const newTodos = [];
-    
-    for (const todo of todos) {
-      if (todo.id === id) {
-        Object.assign(todo, {
-          done: isDone
-        });
-      }
-
-      newTodos.push(todo);
+  const done = async (id, isDone) => {
+    try {
+      const todo = todos.find(item => item.id === id);
+      await updateTodo(todo, isDone);
+      const allTodos = await getAllTodos();
+      setTodos(allTodos);
+    } catch (e) {
+      setError(e.message);
     }
+    
+  }
 
-    setTodos(newTodos);
+  const deleteTodoItem = async (id) => {
+    try {
+      await deleteTodo(id);
+      const allTodos = await getAllTodos();
+      setTodos(allTodos);
+    } catch (e) {
+      setError(e.message);
+    }
+    
   }
   
   return (
     <Container>
       <Row>
+        {error ? <Alert variant="danger">{error}</Alert> : null}
         <Col xs={12}>
           <Tabs 
             defaultActiveKey="todo"
@@ -65,14 +89,14 @@ function App() {
                 </Container>
 
                 <ListGroup className="mt-5">
-                  {todos.filter(item => !item.done).map(item => <Item item={item} checked={false} setDone={done} />)}      
+                  {todos.filter(item => !item.done).map(item => <Item item={item} checked={false} setDone={done} deleteTodo={deleteTodoItem} />)}      
                 </ListGroup>
             </Tab>
             <Tab 
               eventKey="done"
               title={<BadgeTab title={'Done'} number={todos.filter(item => item.done).length} type={'success'} />}>
                 <ListGroup className="mt-5">
-                  {todos.filter(item => item.done).map(item => <Item item={item} checked={true} setDone={done} />)} 
+                  {todos.filter(item => item.done).map(item => <Item item={item} checked={true} setDone={done} deleteTodo={deleteTodoItem} />)} 
                 </ListGroup>
             </Tab>
           </Tabs>
